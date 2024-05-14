@@ -235,6 +235,7 @@ module fpu_ss
   assign x_mem_req_o.mode   = in_buf_pop_data.mode;
   assign x_mem_req_o.size   = instr[14:12];
   assign x_mem_req_o.id     = in_buf_pop_data.id;
+  assign x_mem_req_o.be     = 4'b1111;
 
   always_comb begin
     x_mem_req_o.wdata = fpr_operands[1];
