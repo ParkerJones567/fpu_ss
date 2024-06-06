@@ -78,6 +78,7 @@ module fpu_ss_controller
 
     // Memory Result Interface
     input  logic x_mem_result_valid_i,
+    input  logic [X_ID_WIDTH-1:0] x_mem_result_id_i,
 
     // FPnew
     input  logic       use_fpu_i,
@@ -90,7 +91,8 @@ module fpu_ss_controller
     // Result Interface
     input  logic x_result_ready_i,
     output logic x_result_valid_o,
-    input  logic csr_instr_i
+    input  logic csr_instr_i,
+    input  logic [X_ID_WIDTH-1:0] x_result_id_i
 );
 
   // dependencies and forwarding
@@ -286,6 +288,12 @@ module fpu_ss_controller
     end
     if (fpu_out_ready_o & fpu_out_valid_i) begin
       id_scoreboard_d[fpu_out_id_i] = 1'b0;
+    end
+    if (x_mem_result_valid_i) begin
+      id_scoreboard_d[x_mem_result_id_i] = 1'b0;
+    end
+    if (csr_instr_i & x_result_ready_i) begin
+      id_scoreboard_d[x_result_id_i] = 1'b0;
     end
   end
 

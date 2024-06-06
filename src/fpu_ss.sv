@@ -441,6 +441,7 @@ module fpu_ss
       .x_mem_valid_o    (x_mem_valid_o),
       .x_mem_ready_i    (x_mem_ready_i),
       .x_mem_req_id_i   (x_mem_req_o.id),
+      
       .x_mem_req_we_o   (x_mem_req_o.we),
       .x_mem_req_spec_o (x_mem_req_o.spec),
       .x_mem_req_last_o (x_mem_req_o.last),
@@ -453,7 +454,8 @@ module fpu_ss
 
       // Memory Result Interface
       .x_mem_result_valid_i(x_mem_result_valid_i),
-
+      .x_mem_result_id_i   (x_mem_result_i.id),
+      
       // FPnew
       .fpu_in_valid_o  (fpu_in_valid),
       .fpu_in_ready_i  (fpu_in_ready),
@@ -465,7 +467,8 @@ module fpu_ss
       // Result Interface
       .x_result_ready_i(x_result_ready_i),
       .x_result_valid_o(x_result_valid_o),
-      .csr_instr_i(csr_instr)
+      .csr_instr_i(csr_instr),
+      .x_result_id_i   (x_result_o.id)
   );
 
   // -------------------------------------
