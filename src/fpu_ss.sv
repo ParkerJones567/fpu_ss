@@ -13,6 +13,8 @@
 // Parameters:  PULP_ZFINX:         Enable support for "Zfinx" standard extension (and thereby removing support for
 //                                  "F" standard extension)
 //
+//              RISCV_ZFH:          Enable support for "Zfh" standard extension for half-precision float
+//
 //              INPUT_BUFFER_DEPTH: Set depth of the FIFO input buffer. If parameter is set to 0, no buffer will be
 //                                  instantiated
 //
@@ -45,11 +47,13 @@
 //
 // Contributor: Moritz Imfeld <moimfeld@student.ethz.ch>
 //              Davide Schiavone <davide@openhwgroup.org>
+//              J Parker Jones <parker.jones@tum.de>
 
 module fpu_ss
     import fpu_ss_pkg::*;
 #(
     parameter                                 PULP_ZFINX         = 0,
+    parameter                                 RISCV_ZFH          = 0,
     parameter                                 INPUT_BUFFER_DEPTH = 0,
     parameter                                 OUT_OF_ORDER       = 1,
     parameter                                 FORWARDING         = 1,
@@ -99,8 +103,13 @@ module fpu_ss
   localparam int unsigned NUM_INSTR                   = fpu_ss_prd_zfinx_pkg::NumInstr;
   localparam offload_instr_t OFFLOAD_INSTR[NUM_INSTR] = fpu_ss_prd_zfinx_pkg::OffloadInstr;
 `else
-  localparam int unsigned NUM_INSTR                   = fpu_ss_prd_f_pkg::NumInstr;
-  localparam offload_instr_t OFFLOAD_INSTR[NUM_INSTR] = fpu_ss_prd_f_pkg::OffloadInstr;
+    `ifdef ZFH_ON
+        localparam int unsigned NUM_INSTR                   = fpu_ss_prd_f_zfh_pkg::NumInstr;
+        localparam offload_instr_t OFFLOAD_INSTR[NUM_INSTR] = fpu_ss_prd_f_zfh_pkg::OffloadInstr;
+    `else
+        localparam int unsigned NUM_INSTR                   = fpu_ss_prd_f_pkg::NumInstr;
+        localparam offload_instr_t OFFLOAD_INSTR[NUM_INSTR] = fpu_ss_prd_f_pkg::OffloadInstr;
+    `endif
 `endif
 
   // compressed predecoder signals
@@ -137,6 +146,7 @@ module fpu_ss
   logic                                           op_mode;
   logic                                           use_fpu;
   logic                                           is_store;
+  logic                          [ 3:0]           ls_be;
   logic                                           is_load;
   ls_size_e                                       ls_size;
 
@@ -161,6 +171,7 @@ module fpu_ss
   logic                          [ 4:0]           fpr_wb_addr;
   logic                          [31:0]           fpr_wb_data;
   logic                                           fpr_we;
+  logic                          [ 3:0]           fpr_be;
 
   // memory buffer signals
   logic                                           mem_push_valid;
@@ -230,15 +241,29 @@ module fpu_ss
   assign mem_push_data.id   = in_buf_pop_data.id;
   assign mem_push_data.rd   = rd;
   assign mem_push_data.we   = is_load;
+  assign mem_push_data.be   = ls_be;
 
   // memory request signal assignments
   assign x_mem_req_o.mode   = in_buf_pop_data.mode;
   assign x_mem_req_o.size   = instr[14:12];
   assign x_mem_req_o.id     = in_buf_pop_data.id;
-  assign x_mem_req_o.be     = 4'b1111;
+  assign x_mem_req_o.be     = ls_be;
 
   always_comb begin
-    x_mem_req_o.wdata = fpr_operands[1];
+    unique casez (ls_be)
+        4'b1111: begin
+            x_mem_req_o.wdata = fpr_operands[1];
+        end
+        
+        4'b0011: begin
+            x_mem_req_o.wdata = {16'b0000000000000000 , fpr_operands[1][15:0]};
+        end
+      
+        4'b1100: begin
+            x_mem_req_o.wdata = {fpr_operands[1][15:0] , 16'b0000000000000000};
+        end
+    endcase
+    //x_mem_req_o.wdata = fpr_operands[1];
     if (fpu_fwd[1]) begin
       x_mem_req_o.wdata = fpu_result;
     end else if (lsu_fwd[1]) begin
@@ -320,7 +345,8 @@ module fpu_ss
   // Decoder
   // -------
   fpu_ss_decoder #(
-      .PULP_ZFINX(PULP_ZFINX)
+      .PULP_ZFINX(PULP_ZFINX),
+      .RISCV_ZFH(RISCV_ZFH)
   ) fpu_ss_decoder_i (
       .instr_i       (instr),
       .fpu_rnd_mode_i(fpnew_pkg::roundmode_e'(frm)),
@@ -335,8 +361,9 @@ module fpu_ss
       .vectorial_op_o(vectorial_op),
       .op_mode_o     (op_mode),
       .use_fpu_o     (use_fpu),
-      .is_store_o    (is_store),
+      .is_store_o    (is_store),     
       .is_load_o     (is_load),
+      .x_mem_req_be_o(ls_be),
       .ls_size_o     (ls_size)
   );
 
@@ -504,7 +531,19 @@ module fpu_ss
       always_comb begin
         fpr_wb_data = fpu_result;
         if (x_mem_result_valid_i) begin
-          fpr_wb_data = x_mem_result_i.rdata;
+         unique casez (mem_pop_data.be)
+            4'b1111: begin
+                fpr_wb_data = x_mem_result_i.rdata;
+            end
+        
+            4'b0011: begin
+                fpr_wb_data = {16'b0000000000000000 , x_mem_result_i.rdata[15:0]};
+            end
+      
+            4'b1100: begin
+                fpr_wb_data = {16'b0000000000000000 , x_mem_result_i.rdata[31:16]};
+            end
+          endcase
         end
       end
 

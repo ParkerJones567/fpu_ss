@@ -13,7 +13,8 @@
 // Based on: https://github.com/pulp-platform/snitch/blob/master/hw/ip/snitch_cluster/src/snitch_fp_ss.sv
 
 module fpu_ss_decoder #(
-    parameter PULP_ZFINX = 0
+    parameter PULP_ZFINX = 0,
+    parameter RISCV_ZFH = 0
 ) (
     input  logic                   [31:0] instr_i,
     input  fpnew_pkg::roundmode_e         fpu_rnd_mode_i,
@@ -30,6 +31,7 @@ module fpu_ss_decoder #(
     output logic                          use_fpu_o,
     output logic                          is_store_o,
     output logic                          is_load_o,
+    output logic [3:0]                    x_mem_req_be_o,
     output fpu_ss_pkg::ls_size_e          ls_size_o
 );
 
@@ -49,7 +51,8 @@ module fpu_ss_decoder #(
 
     src_fmt_o = fpnew_pkg::FP32;
     dst_fmt_o = fpnew_pkg::FP32;
-    int_fmt_o = fpnew_pkg::INT32;
+    int_fmt_o = fpnew_pkg::INT32; 
+    
 
     op_select_o[0] = fpu_ss_pkg::None;
     op_select_o[1] = fpu_ss_pkg::None;
@@ -59,6 +62,7 @@ module fpu_ss_decoder #(
     op_mode_o = 1'b0;
 
     is_store_o = 1'b0;
+    x_mem_req_be_o = 4'b1111;
     is_load_o = 1'b0;
     ls_size_o = fpu_ss_pkg::Word;
 
@@ -129,6 +133,95 @@ module fpu_ss_decoder #(
         op_select_o[2] = fpu_ss_pkg::RegC;
         op_mode_o      = 1'b1;
       end
+      
+      `ifdef ZFH_ON
+      // FP - FP Operations
+      // Half Precision
+      fpu_ss_instr_pkg::FADD_H: begin
+        fpu_op_o = fpnew_pkg::ADD;
+        op_select_o[1] = fpu_ss_pkg::RegA;
+        op_select_o[2] = fpu_ss_pkg::RegB;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FSUB_H: begin
+        fpu_op_o = fpnew_pkg::ADD;
+        op_select_o[1] = fpu_ss_pkg::RegA;
+        op_select_o[2] = fpu_ss_pkg::RegB;
+        op_mode_o = 1'b1;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FMUL_H: begin
+        fpu_op_o = fpnew_pkg::MUL;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FSGNJ_H, fpu_ss_instr_pkg::FSGNJN_H, fpu_ss_instr_pkg::FSGNJX_H: begin
+        fpu_op_o = fpnew_pkg::SGNJ;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FMIN_H, fpu_ss_instr_pkg::FMAX_H: begin
+        fpu_op_o = fpnew_pkg::MINMAX;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FMADD_H: begin
+        fpu_op_o = fpnew_pkg::FMADD;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        op_select_o[2] = fpu_ss_pkg::RegC;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FMSUB_H: begin
+        fpu_op_o       = fpnew_pkg::FMADD;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        op_select_o[2] = fpu_ss_pkg::RegC;
+        op_mode_o      = 1'b1;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FNMSUB_H: begin
+        fpu_op_o = fpnew_pkg::FNMSUB;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        op_select_o[2] = fpu_ss_pkg::RegC;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FNMADD_H: begin
+        fpu_op_o       = fpnew_pkg::FNMSUB;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        op_select_o[2] = fpu_ss_pkg::RegC;
+        op_mode_o      = 1'b1;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FDIV_H: begin
+        fpu_op_o = fpnew_pkg::DIV;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FSQRT_H: begin
+        fpu_op_o = fpnew_pkg::SQRT;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+      end
+      `endif
+      
       // -------------------
       // From float to int
       // -------------------
@@ -166,6 +259,44 @@ module fpu_ss_decoder #(
         op_select_o[0] = fpu_ss_pkg::RegA;
         rd_is_fp_dec     = 1'b0;
       end
+      `ifdef ZFH_ON
+      // Half Precision Floating-Point
+      fpu_ss_instr_pkg::FLE_H, fpu_ss_instr_pkg::FLT_H, fpu_ss_instr_pkg::FEQ_H: begin
+        fpu_op_o       = fpnew_pkg::CMP;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+        rd_is_fp_dec     = 1'b0;
+      end
+      fpu_ss_instr_pkg::FCLASS_H: begin
+        fpu_op_o       = fpnew_pkg::CLASSIFY;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        fpu_rnd_mode_o = fpnew_pkg::RNE;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+        rd_is_fp_dec     = 1'b0;
+      end
+      fpu_ss_instr_pkg::FCVT_W_H, fpu_ss_instr_pkg::FCVT_WU_H: begin
+        fpu_op_o       = fpnew_pkg::F2I;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP32;
+        rd_is_fp_dec     = 1'b0;
+        if (instr_i inside {fpu_ss_instr_pkg::FCVT_WU_H}) op_mode_o = 1'b1;  // unsigned
+      end
+      fpu_ss_instr_pkg::FMV_X_H: begin
+        fpu_op_o       = fpnew_pkg::SGNJ;
+        fpu_rnd_mode_o = fpnew_pkg::RUP;  // passthrough without checking nan-box
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+        op_mode_o      = 1'b1;  // sign-extend result
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        rd_is_fp_dec     = 1'b0;
+      end
+      `endif
+      
+      
       // -------------------
       // From int to float
       // -------------------
@@ -183,6 +314,46 @@ module fpu_ss_decoder #(
         dst_fmt_o      = fpnew_pkg::FP32;
         if (instr_i inside {fpu_ss_instr_pkg::FCVT_S_WU}) op_mode_o = 1'b1;  // unsigned
       end
+      `ifdef ZFH_ON
+      // Half Precision Floating-Point
+      fpu_ss_instr_pkg::FMV_H_X: begin
+        fpu_op_o       = fpnew_pkg::SGNJ;
+        op_select_o[0] = fpu_ss_pkg::AccBus;
+        fpu_rnd_mode_o = fpnew_pkg::RUP;  // passthrough without checking nan-box
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      fpu_ss_instr_pkg::FCVT_H_W, fpu_ss_instr_pkg::FCVT_H_WU: begin
+        fpu_op_o       = fpnew_pkg::I2F;
+        op_select_o[0] = fpu_ss_pkg::AccBus;
+        dst_fmt_o      = fpnew_pkg::FP16;
+        if (instr_i inside {fpu_ss_instr_pkg::FCVT_H_WU}) op_mode_o = 1'b1;  // unsigned
+      end
+      `endif
+      
+      // -------------------
+      // From Single Precision Floating-Point to Half Precision Floating-Point
+      // -------------------
+      fpu_ss_instr_pkg::FCVT_H_S: begin
+        fpu_op_o       = fpnew_pkg::F2F;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        src_fmt_o      = fpnew_pkg::FP32;
+        dst_fmt_o      = fpnew_pkg::FP16;
+      end
+      
+      `ifdef ZFH_ON
+      // -------------------
+      // From Half Precision Floating-Point to Single Precision Floating-Point
+      // -------------------
+      fpu_ss_instr_pkg::FCVT_S_H: begin
+        fpu_op_o       = fpnew_pkg::F2F;
+        op_select_o[0] = fpu_ss_pkg::RegA;
+        src_fmt_o      = fpnew_pkg::FP16;
+        dst_fmt_o      = fpnew_pkg::FP32;
+      end
+      `endif
+      
+      
       // -------------
       // Load / Store
       // -------------
@@ -197,6 +368,41 @@ module fpu_ss_decoder #(
         use_fpu_o = 1'b0;
         rd_is_fp_dec = 1'b0;
       end
+      `ifdef ZFH_ON
+      // Half Precision Floating-Point
+      fpu_ss_instr_pkg::FLH: begin
+        is_load_o = 1'b1;
+        use_fpu_o = 1'b0;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+        ls_size_o = fpu_ss_pkg::HalfWord;
+        unique casez (instr_i[21])
+            1'b0: begin
+                x_mem_req_be_o = 4'b0011;
+            end
+            1'b1: begin
+                x_mem_req_be_o = 4'b1100;
+            end
+        endcase
+      end
+      fpu_ss_instr_pkg::FSH: begin
+        is_store_o = 1'b1;
+        op_select_o[1] = fpu_ss_pkg::RegB;
+        use_fpu_o = 1'b0;
+        rd_is_fp_dec = 1'b0;
+        src_fmt_o = fpnew_pkg::FP16;
+        dst_fmt_o = fpnew_pkg::FP16;
+        ls_size_o = fpu_ss_pkg::HalfWord;
+        unique casez (instr_i[8])
+            1'b0: begin
+                x_mem_req_be_o = 4'b0011;
+            end
+            1'b1: begin
+                x_mem_req_be_o = 4'b1100;
+            end
+        endcase
+      end
+      `endif
       default: begin
         use_fpu_o  = 1'b0;
         rd_is_fp_dec = 1'b0;

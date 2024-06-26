@@ -166,6 +166,7 @@ package fpu_ss_pkg;
     logic [ 3:0] id;
     logic [ 4:0] rd;
     logic        we;
+    logic [ 4:0] be;
   } mem_metadata_t;
 
   typedef struct packed {
