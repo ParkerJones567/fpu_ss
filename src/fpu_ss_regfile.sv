@@ -16,9 +16,16 @@ module fpu_ss_regfile (
     // clock and reset
     input  logic              clk_i,
     input  logic              rst_ni,
+    `ifdef VICUNA_F_ON
+    // extra read port for Vicuna Arbiter
+    input  logic [ 4:0][ 4:0] raddr_i,
+    output logic [31:0] vicuna_rdata_o, 
+    `else
     // read port
     input  logic [ 2:0][ 4:0] raddr_i,
+    `endif
     output logic [ 2:0][31:0] rdata_o,
+
     // write port
     input  logic [ 4:0]       waddr_i,
     input  logic [31:0]       wdata_i,
@@ -49,8 +56,14 @@ module fpu_ss_regfile (
     end
   end
 
+  
+   
   for (genvar i = 0; i < 3; i++) begin : gen_read_port
     assign rdata_o[i] = mem[raddr_i[i]];
   end
+  `ifdef VICUNA_F_ON 
+  //read port for Vicuna Arbiter
+  assign vicuna_rdata_o = mem[raddr_i[3]];
+  `endif
 
 endmodule // fpu_ss_regfile

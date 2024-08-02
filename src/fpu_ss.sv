@@ -66,6 +66,14 @@ module fpu_ss
     input logic clk_i,
     input logic rst_ni,
 
+    `ifdef VICUNA_F_ON
+    //Interface to Vicuna Arbiter
+    output logic [31:0] vicuna_rd_scoreboard_o,
+    input  logic [ 4:0] vicuna_raddr_i,
+    output logic [31:0] vicuna_rdata_o, 
+
+    `endif
+
     // Compressed Interface
     input  logic x_compressed_valid_i,
     output logic x_compressed_ready_o,
@@ -96,6 +104,8 @@ module fpu_ss
     output logic x_result_valid_o,
     input  logic x_result_ready_i,
     output x_result_t x_result_o
+
+
 );
 
 // predecoder parameter
@@ -167,7 +177,11 @@ module fpu_ss
   logic                          [ 4:0]           rs3;
   logic                          [ 4:0]           rd;
   logic                          [31:0]           offset;
+  `ifdef VICUNA_F_ON
+  logic                          [ 3:0]   [ 4:0]  fpr_raddr;
+  `else 
   logic                          [ 2:0]   [ 4:0]  fpr_raddr;
+  `endif
   logic                          [ 4:0]           fpr_wb_addr;
   logic                          [31:0]           fpr_wb_data;
   logic                                           fpr_we;
@@ -491,11 +505,18 @@ module fpu_ss
       .fpu_out_valid_i (fpu_out_valid),
       .fpu_out_ready_o (fpu_out_ready),
 
+      `ifdef VICUNA_F_ON
+      // Interface for Vicuna Arbiter
+      .rd_scoreboard_o(vicuna_rd_scoreboard_o),
+      `endif
+
       // Result Interface
       .x_result_ready_i(x_result_ready_i),
       .x_result_valid_o(x_result_valid_o),
       .csr_instr_i(csr_instr),
       .x_result_id_i   (x_result_o.id)
+
+
   );
 
   // -------------------------------------
@@ -508,6 +529,9 @@ module fpu_ss
         fpr_raddr[0] = rs1;
         fpr_raddr[1] = rs2;
         fpr_raddr[2] = rs3;
+        `ifdef VICUNA_F_ON
+        fpr_raddr[3] = vicuna_raddr_i;
+        `endif
 
         unique case (op_select_dec[1])
           RegA: begin
@@ -563,7 +587,9 @@ module fpu_ss
 
           .raddr_i(fpr_raddr),
           .rdata_o(fpr_operands),
-
+          `ifdef VICUNA_F_ON
+          .vicuna_rdata_o(vicuna_rdata_o),
+          `endif
           .waddr_i(fpr_wb_addr),
           .wdata_i(fpr_wb_data),
           .we_i   (fpr_we)

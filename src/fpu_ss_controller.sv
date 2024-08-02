@@ -88,6 +88,11 @@ module fpu_ss_controller
     input  logic       fpu_out_valid_i,
     output logic       fpu_out_ready_o,
 
+    `ifdef VICUNA_F_ON 
+    // Interface for Vicuna Arbiter
+    output logic [31:0] rd_scoreboard_o,
+    `endif
+
     // Result Interface
     input  logic x_result_ready_i,
     output logic x_result_valid_o,
@@ -116,6 +121,10 @@ module fpu_ss_controller
   logic [31:0] rd_scoreboard_q;
   logic [15:0] id_scoreboard_d;
   logic [15:0] id_scoreboard_q;
+
+  `ifdef VICUNA_F_ON 
+  assign rd_scoreboard_o = rd_scoreboard_q;
+  `endif
 
   // ---------------
   // Issue Interface
