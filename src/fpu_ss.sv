@@ -72,6 +72,15 @@ module fpu_ss
     input  logic [ 4:0] vicuna_raddr_i,
     output logic [31:0] vicuna_rdata_o, 
 
+    input logic vicuna_fpr_wr_req_valid,
+    input  logic [4:0] vicuna_fpr_wr_req_addr_i,
+
+    input logic vicuna_fpr_res_valid,
+    input  logic [4:0] vicuna_fpr_res_addr_i,
+    input  logic [31:0] vicuna_fpr_wb_data_i, 
+
+    output fpnew_pkg::roundmode_e float_round_mode_o,
+
     `endif
 
     // Compressed Interface
@@ -201,6 +210,11 @@ module fpu_ss
   logic                          [ 4:0]           csr_wb_addr;
   logic                          [ 3:0]           csr_wb_id;
   logic                          [ 2:0]           frm;
+  `ifdef VICUNA_F_ON
+
+  assign float_round_mode_o = fpnew_pkg::roundmode_e'(frm);
+
+  `endif
 
   // FPnew signals
   fpu_tag_t                                       fpu_tag_in;
@@ -508,6 +522,12 @@ module fpu_ss
       `ifdef VICUNA_F_ON
       // Interface for Vicuna Arbiter
       .rd_scoreboard_o(vicuna_rd_scoreboard_o),
+
+      .vicuna_fpr_wr_req_valid(vicuna_fpr_wr_req_valid),
+      .vicuna_fpr_wr_req_addr_i(vicuna_fpr_wr_req_addr_i),
+
+      .vicuna_fpr_res_valid(vicuna_fpr_res_valid),
+      .vicuna_fpr_res_addr_i(vicuna_fpr_res_addr_i),
       `endif
 
       // Result Interface
@@ -569,6 +589,12 @@ module fpu_ss
             end
           endcase
         end
+
+        `ifdef VICUNA_F_ON
+        else if (vicuna_fpr_res_valid) begin
+          fpr_wb_data = vicuna_fpr_wb_data_i;
+        end
+        `endif
       end
 
       // fp register addr writeback mux
@@ -576,6 +602,10 @@ module fpu_ss
         fpr_wb_addr = fpu_tag_out.addr;
         if (x_mem_result_valid_i) begin
           fpr_wb_addr = mem_pop_data.rd;
+        `ifdef VICUNA_F_ON
+        end else if (vicuna_fpr_res_valid) begin
+          fpr_wb_addr = vicuna_fpr_res_addr_i;
+        `endif
         end else if (~use_fpu & ~fpu_out_valid) begin
           fpr_wb_addr = rd;
         end

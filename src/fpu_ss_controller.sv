@@ -91,6 +91,12 @@ module fpu_ss_controller
     `ifdef VICUNA_F_ON 
     // Interface for Vicuna Arbiter
     output logic [31:0] rd_scoreboard_o,
+
+    input logic vicuna_fpr_wr_req_valid,
+    input  logic [4:0] vicuna_fpr_wr_req_addr_i,
+
+    input logic vicuna_fpr_res_valid,
+    input logic [4:0] vicuna_fpr_res_addr_i,
     `endif
 
     // Result Interface
@@ -154,7 +160,11 @@ module fpu_ss_controller
   // ----------------
   always_comb begin
     fpr_we_o = 1'b0;
+    `ifdef VICUNA_F_ON 
+    if ((fpu_out_valid_i & fpu_out_ready_o & rd_is_fp_i) | (mem_pop_data_i.we & x_mem_result_valid_i) & ~PULP_ZFINX | vicuna_fpr_res_valid) begin
+    `else
     if ((fpu_out_valid_i & fpu_out_ready_o & rd_is_fp_i) | (mem_pop_data_i.we & x_mem_result_valid_i) & ~PULP_ZFINX) begin
+    `endif
       fpr_we_o = 1'b1;
     end
   end
@@ -288,6 +298,18 @@ module fpu_ss_controller
                 & (mem_pop_data_i.rd == rd_i))) begin
       rd_scoreboard_d[mem_pop_data_i.rd] = 1'b0;
     end
+
+    `ifdef VICUNA_F_ON 
+    //Interface to allow vicuna to mark fregs as invalid/waiting for a writed
+    if (vicuna_fpr_wr_req_valid) begin
+      rd_scoreboard_d[vicuna_fpr_wr_req_addr_i] = 1'b1;
+    end
+
+    if (vicuna_fpr_res_valid) begin
+      rd_scoreboard_d[vicuna_fpr_res_addr_i] = 1'b0;
+    end
+
+    `endif
   end
 
   always_comb begin
