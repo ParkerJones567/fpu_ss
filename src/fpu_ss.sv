@@ -575,7 +575,7 @@ module fpu_ss
       always_comb begin
         fpr_wb_data = fpu_result;
         if (x_mem_result_valid_i) begin
-         unique casez (mem_pop_data.be)
+         unique case (mem_pop_data.be)
             4'b1111: begin
                 fpr_wb_data = x_mem_result_i.rdata;
             end
@@ -586,6 +586,10 @@ module fpu_ss
       
             4'b1100: begin
                 fpr_wb_data = {16'b0000000000000000 , x_mem_result_i.rdata[31:16]};
+            end
+
+            4'b0000: begin
+              fpr_wb_data = '0;
             end
           endcase
         end
@@ -783,5 +787,9 @@ module fpu_ss
       x_result_o.ecsdata = 6'b001100;
     end
   end
+
+
+
+  //in case offloaded instruction
 
 endmodule  // fpu_ss

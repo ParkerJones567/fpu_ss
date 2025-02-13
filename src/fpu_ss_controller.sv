@@ -158,6 +158,23 @@ module fpu_ss_controller
   // ----------------
   // FP Register File
   // ----------------
+  assert property (@(posedge clk_i) !((fpu_out_valid_i & fpu_out_ready_o & rd_is_fp_i) & ((mem_pop_data_i.we & x_mem_result_valid_i) & ~PULP_ZFINX))
+  ) else begin
+      $error("WRITING FPU_OUT AND X_MEM_RESULT AT THE SAME TIME");
+  end
+
+  `ifdef VICUNA_F_ON 
+  assert property ( @(posedge clk_i) !((fpu_out_valid_i & fpu_out_ready_o & rd_is_fp_i) & ((vicuna_fpr_res_valid)))
+  ) else begin
+      $error("WRITING FPU_OUT AND VICUNA_FPU_RESULT AT THE SAME TIME");
+  end
+
+  assert property ( @(posedge clk_i) !(((mem_pop_data_i.we & x_mem_result_valid_i) & ~PULP_ZFINX) & ((vicuna_fpr_res_valid)))
+  ) else begin
+      $error("XIF_MEM_RES AND VICUNA_FPU_RESULT AT THE SAME TIME");
+  end
+  `endif
+
   always_comb begin
     fpr_we_o = 1'b0;
     `ifdef VICUNA_F_ON 
@@ -242,7 +259,7 @@ module fpu_ss_controller
   // -----
   // FPnew
   // -----
-  assign fpu_out_ready_o = ~x_mem_result_valid_i;
+  assign fpu_out_ready_o = ~x_mem_result_valid_i && x_result_ready_i;
   always_comb begin
     fpu_in_valid_o = 1'b0;
     if (use_fpu_i & in_buf_pop_valid_i & (id_scoreboard_q[fpu_in_id_i] | ((x_commit_i.id == fpu_in_id_i)
