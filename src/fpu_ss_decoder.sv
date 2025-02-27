@@ -13,8 +13,7 @@
 // Based on: https://github.com/pulp-platform/snitch/blob/master/hw/ip/snitch_cluster/src/snitch_fp_ss.sv
 
 module fpu_ss_decoder #(
-    parameter PULP_ZFINX = 0,
-    parameter RISCV_ZFH = 0
+    parameter PULP_ZFINX = 0
 ) (
     input  logic                   [31:0] instr_i,
     input  fpnew_pkg::roundmode_e         fpu_rnd_mode_i,
@@ -134,7 +133,7 @@ module fpu_ss_decoder #(
         op_mode_o      = 1'b1;
       end
       
-      `ifdef ZFH_ON
+      `ifdef RISCV_ZFH
       // FP - FP Operations
       // Half Precision
       fpu_ss_instr_pkg::FADD_H: begin
@@ -259,7 +258,7 @@ module fpu_ss_decoder #(
         op_select_o[0] = fpu_ss_pkg::RegA;
         rd_is_fp_dec     = 1'b0;
       end
-      `ifdef ZFH_ON
+      `ifdef RISCV_ZFH
       // Half Precision Floating-Point
       fpu_ss_instr_pkg::FLE_H, fpu_ss_instr_pkg::FLT_H, fpu_ss_instr_pkg::FEQ_H: begin
         fpu_op_o       = fpnew_pkg::CMP;
@@ -314,7 +313,7 @@ module fpu_ss_decoder #(
         dst_fmt_o      = fpnew_pkg::FP32;
         if (instr_i inside {fpu_ss_instr_pkg::FCVT_S_WU}) op_mode_o = 1'b1;  // unsigned
       end
-      `ifdef ZFH_ON
+      `ifdef RISCV_ZFH
       // Half Precision Floating-Point
       fpu_ss_instr_pkg::FMV_H_X: begin
         fpu_op_o       = fpnew_pkg::SGNJ;
@@ -341,7 +340,7 @@ module fpu_ss_decoder #(
         dst_fmt_o      = fpnew_pkg::FP16;
       end
       
-      `ifdef ZFH_ON
+      `ifdef RISCV_ZFH
       // -------------------
       // From Half Precision Floating-Point to Single Precision Floating-Point
       // -------------------
@@ -368,7 +367,7 @@ module fpu_ss_decoder #(
         use_fpu_o = 1'b0;
         rd_is_fp_dec = 1'b0;
       end
-      `ifdef ZFH_ON
+      `ifdef RISCV_ZFH
       // Half Precision Floating-Point
       fpu_ss_instr_pkg::FLH: begin
         is_load_o = 1'b1;

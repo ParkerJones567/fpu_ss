@@ -13,8 +13,6 @@
 // Parameters:  PULP_ZFINX:         Enable support for "Zfinx" standard extension (and thereby removing support for
 //                                  "F" standard extension)
 //
-//              RISCV_ZFH:          Enable support for "Zfh" standard extension for half-precision float
-//
 //              INPUT_BUFFER_DEPTH: Set depth of the FIFO input buffer. If parameter is set to 0, no buffer will be
 //                                  instantiated
 //
@@ -53,7 +51,6 @@ module fpu_ss
     import fpu_ss_pkg::*;
 #(
     parameter                                 PULP_ZFINX         = 0,
-    parameter                                 RISCV_ZFH          = 0,
     parameter                                 INPUT_BUFFER_DEPTH = 0,
     parameter                                 OUT_OF_ORDER       = 1,
     parameter                                 FORWARDING         = 1,
@@ -66,7 +63,7 @@ module fpu_ss
     input logic clk_i,
     input logic rst_ni,
 
-    `ifdef VICUNA_F_ON
+    `ifdef RISCV_ZVE32F
     //Interface to Vicuna Arbiter
     output logic [31:0] vicuna_rd_scoreboard_o,
     input  logic [ 4:0] vicuna_raddr_i,
@@ -122,7 +119,7 @@ module fpu_ss
   localparam int unsigned NUM_INSTR                   = fpu_ss_prd_zfinx_pkg::NumInstr;
   localparam offload_instr_t OFFLOAD_INSTR[NUM_INSTR] = fpu_ss_prd_zfinx_pkg::OffloadInstr;
 `else
-    `ifdef ZFH_ON
+    `ifdef RISCV_ZFH
         localparam int unsigned NUM_INSTR                   = fpu_ss_prd_f_zfh_pkg::NumInstr;
         localparam offload_instr_t OFFLOAD_INSTR[NUM_INSTR] = fpu_ss_prd_f_zfh_pkg::OffloadInstr;
     `else
@@ -186,7 +183,7 @@ module fpu_ss
   logic                          [ 4:0]           rs3;
   logic                          [ 4:0]           rd;
   logic                          [31:0]           offset;
-  `ifdef VICUNA_F_ON
+  `ifdef RISCV_ZVE32F
   logic                          [ 3:0]   [ 4:0]  fpr_raddr;
   `else 
   logic                          [ 2:0]   [ 4:0]  fpr_raddr;
@@ -210,7 +207,7 @@ module fpu_ss
   logic                          [ 4:0]           csr_wb_addr;
   logic                          [ 3:0]           csr_wb_id;
   logic                          [ 2:0]           frm;
-  `ifdef VICUNA_F_ON
+  `ifdef RISCV_ZVE32F
 
   assign float_round_mode_o = fpnew_pkg::roundmode_e'(frm);
 
@@ -373,8 +370,7 @@ module fpu_ss
   // Decoder
   // -------
   fpu_ss_decoder #(
-      .PULP_ZFINX(PULP_ZFINX),
-      .RISCV_ZFH(RISCV_ZFH)
+      .PULP_ZFINX(PULP_ZFINX)
   ) fpu_ss_decoder_i (
       .instr_i       (instr),
       .fpu_rnd_mode_i(fpnew_pkg::roundmode_e'(frm)),
@@ -519,7 +515,7 @@ module fpu_ss
       .fpu_out_valid_i (fpu_out_valid),
       .fpu_out_ready_o (fpu_out_ready),
 
-      `ifdef VICUNA_F_ON
+      `ifdef RISCV_ZVE32F
       // Interface for Vicuna Arbiter
       .rd_scoreboard_o(vicuna_rd_scoreboard_o),
 
@@ -549,7 +545,7 @@ module fpu_ss
         fpr_raddr[0] = rs1;
         fpr_raddr[1] = rs2;
         fpr_raddr[2] = rs3;
-        `ifdef VICUNA_F_ON
+        `ifdef RISCV_ZVE32F
         fpr_raddr[3] = vicuna_raddr_i;
         `endif
 
@@ -594,7 +590,7 @@ module fpu_ss
           endcase
         end
 
-        `ifdef VICUNA_F_ON
+        `ifdef RISCV_ZVE32F
         else if (vicuna_fpr_res_valid) begin
           fpr_wb_data = vicuna_fpr_wb_data_i;
         end
@@ -606,7 +602,7 @@ module fpu_ss
         fpr_wb_addr = fpu_tag_out.addr;
         if (x_mem_result_valid_i) begin
           fpr_wb_addr = mem_pop_data.rd;
-        `ifdef VICUNA_F_ON
+        `ifdef RISCV_ZVE32F
         end else if (vicuna_fpr_res_valid) begin
           fpr_wb_addr = vicuna_fpr_res_addr_i;
         `endif
@@ -621,7 +617,7 @@ module fpu_ss
 
           .raddr_i(fpr_raddr),
           .rdata_o(fpr_operands),
-          `ifdef VICUNA_F_ON
+          `ifdef RISCV_ZVE32F
           .vicuna_rdata_o(vicuna_rdata_o),
           `endif
           .waddr_i(fpr_wb_addr),

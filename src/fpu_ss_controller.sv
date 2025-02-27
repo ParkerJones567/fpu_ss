@@ -88,7 +88,7 @@ module fpu_ss_controller
     input  logic       fpu_out_valid_i,
     output logic       fpu_out_ready_o,
 
-    `ifdef VICUNA_F_ON 
+    `ifdef RISCV_ZVE32F 
     // Interface for Vicuna Arbiter
     output logic [31:0] rd_scoreboard_o,
 
@@ -128,7 +128,7 @@ module fpu_ss_controller
   logic [15:0] id_scoreboard_d;
   logic [15:0] id_scoreboard_q;
 
-  `ifdef VICUNA_F_ON 
+  `ifdef RISCV_ZVE32F  
   assign rd_scoreboard_o = rd_scoreboard_q;
   `endif
 
@@ -316,7 +316,7 @@ module fpu_ss_controller
       rd_scoreboard_d[mem_pop_data_i.rd] = 1'b0;
     end
 
-    `ifdef VICUNA_F_ON 
+    `ifdef RISCV_ZVE32F  
     //Interface to allow vicuna to mark fregs as invalid/waiting for a writed
     if (vicuna_fpr_wr_req_valid) begin
       rd_scoreboard_d[vicuna_fpr_wr_req_addr_i] = 1'b1;
